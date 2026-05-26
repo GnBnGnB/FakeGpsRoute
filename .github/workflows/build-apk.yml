@@ -12,28 +12,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
+      - name: Clone repository without checkout action
+        run: |
+          git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git .
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+      - name: Show Java version
+        run: |
+          java -version
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Show Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME" || true
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
+      - name: Install required Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Download Gradle
+        run: |
+          curl -L -o gradle.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle.zip -d gradle-dist
+          echo "$PWD/gradle-dist/gradle-8.7/bin" >> $GITHUB_PATH
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug
+        run: |
+          gradle :app:assembleDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: FakeGpsRoute-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+      - name: Prepare APK artifact
+        run: |
+          mkdir -p output
+          cp app/build/outputs/apk/debug/*.apk output/
+
+      - name: Upload APK without upload-artifact action
+        run: |
+          echo "APK built successfully."
+          ls -lah output
